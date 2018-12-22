@@ -19,25 +19,26 @@ class App extends React.Component {
   componentDidMount() {
     Caspio.authenticate()
       .then(function(result) {
-        const caspioAccessToken = result.data.token_type+" "+result.data.access_token
+        const caspioAccessToken = result
         this.setState({caspioAccessToken})
 
         Caspio.requestDataSources(this.state.caspioAccessToken, Constants.dataSourceEnum.views)
           .then(function(dataSources) {
-            const caspioViews = dataSources.data.Result
+            const caspioViews = dataSources
             this.setState({caspioViews: this.state.caspioViews.concat(caspioViews)})
           }.bind(this))
 
         Caspio.requestDataSources(this.state.caspioAccessToken, Constants.dataSourceEnum.tables)
           .then(function(dataSources) {
-            const caspioTables = dataSources.data.Result
+            const caspioTables = dataSources
             this.setState({caspioTables: this.state.caspioTables.concat(caspioTables)})
           }.bind(this))
       }.bind(this))
   }
 
   async getContacts(token) {
-    await Caspio.requestData(token, this.state.currentPage, Constants.dataSourceEnum.views, "CBPeopleJobs_Surge").then(function(contacts) {
+    await Caspio.requestData(token, this.state.currentPage, Constants.caspioPageSize, Constants.dataSourceEnum.views, "CBPeopleJobs_Surge")
+    .then(function(contacts) {
       this.setState({currentPage: this.state.currentPage + 1})
       if (contacts.data.Result.length === Constants.caspioPageSize) {
         return this.getContacts(token)
@@ -48,7 +49,6 @@ class App extends React.Component {
   handleDataSourceChange = (e, {value}) => {
     this.setState({dataSource: value.dataSource })
     Caspio.requestDataSourceColumns(this.state.caspioAccessToken, value.dataSourceType , value.dataSource)
-    console.log(value)
   }
 
   render() {
