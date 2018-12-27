@@ -1,11 +1,11 @@
 // src/js/components/App.jsx
 import React from 'react'
 import Constants from './../constants/Constants'
-import { authorize }  from './../apis/Caspio'
+import { authorize, requestDataSources }  from './../apis/Caspio'
 import * as Caspio from './../apis/Caspio'
+
 import { Dropdown, Accordion, Menu, Grid, Segment} from 'semantic-ui-react'
 import { connect } from "react-redux";
-import { Observable } from 'rxjs';
 
 const mapStateToProps = state => {
   return { caspioAuthToken: state.caspioAuthToken,
@@ -44,6 +44,17 @@ class App extends React.Component {
       //       this.setState({caspioTables: this.state.caspioTables.concat(caspioTables)})
       //     }.bind(this))
       // }.bind(this))
+  }
+
+  componentDidUpdate(){
+    if (this.props.caspioAuthToken !== null) {
+      if (this.props.caspioTables.length === 0) {
+        this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.tables)
+      }
+      if (this.props.caspioViews.length === 0) {
+        this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.views)
+      }
+    }
   }
 
   async getContacts(token) {
@@ -180,7 +191,7 @@ const Views = (props) => (
 
 export default connect(
   mapStateToProps,
-  { authorize }
+  { authorize, requestDataSources }
 )(App);
 
 //export default connect(null, mapDispatchToProps)(App);

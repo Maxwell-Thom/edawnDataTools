@@ -49,6 +49,7 @@ export async function requestData(accessToken, pageNumber, pageSize, dataSourceT
 
 export function requestDataSources(accessToken, dataSourceType) {
   console.log("requestDataSources "+dataSourceType)
+  console.log("accessToken "+accessToken)
   const config = {
     headers: {
       "Authorization": accessToken
