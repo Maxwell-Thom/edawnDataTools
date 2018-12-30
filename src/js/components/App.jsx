@@ -1,87 +1,139 @@
 // src/js/components/App.jsx
 import React from 'react'
 import Constants from './../constants/Constants'
-import { authorize, requestDataSources }  from './../apis/Caspio'
+import DataSourceAccordion from './../components/DataSourceAccordion'
+import ColumnDropdown from './../components/ColumnDropdown'
 import * as Caspio from './../apis/Caspio'
 
-import { Dropdown, Accordion, Menu, Grid, Segment} from 'semantic-ui-react'
-import { connect } from "react-redux";
+import {
+  Grid,
+  Segment,
+  Button,
+  Progress,
+  Label
+} from 'semantic-ui-react'
+
+import {
+  connect
+} from "react-redux";
+
+import {
+  authorize,
+  requestDataSources
+} from './../apis/Caspio'
+
+import {
+  setJobRunning
+} from "./../actions/index";
+
+import {
+  getProspectEmail
+} from './../apis/Prospect'
 
 const mapStateToProps = state => {
-  return { caspioAuthToken: state.caspioAuthToken,
-          caspioViews: state.caspioViews,
-          caspioTables: state.caspioViews
-        };
+  return {
+    caspioAuthToken: state.caspioAuthToken,
+    caspioViews: state.caspioViews,
+    caspioTables: state.caspioTables,
+    selectedDataSourceColumns: state.selectedDataSourceColumns,
+    selectedDataSourceDomain: state.selectedDataSourceDomain,
+    selectedDataSourceUUID: state.selectedDataSourceUUID,
+    selectedDataSourceFirstName: state.selectedDataSourceFirstName,
+    selectedDataSourceLastName: state.selectedDataSourceLastName,
+    selectedDataSource: state.selectedDataSource,
+    selectedDataSourceType: state.selectedDataSourceType,
+    jobRunning: state.jobRunning
+  };
 }
 
 class App extends React.Component {
 
-  constructor() {
-    super()
-    this.state = { currentPage: 1,
-                    dataSource: null,
-                    dataSourceColumns: [],
-                    dataSourceActiveIndex: 0
-                  }
-  }
-
-  componentDidMount() {
-    this.props.authorize()
-
-      // .then(function(result) {
-      //   const caspioAccessToken = result
-      //   this.setState({caspioAccessToken})
-      //
-      //   Caspio.requestDataSources(this.state.caspioAccessToken, Constants.dataSourceEnum.views)
-      //     .then(function(dataSources) {
-      //       const caspioViews = dataSources
-      //       this.setState({caspioViews: this.state.caspioViews.concat(caspioViews)})
-      //     }.bind(this))
-      //
-      //   Caspio.requestDataSources(this.state.caspioAccessToken, Constants.dataSourceEnum.tables)
-      //     .then(function(dataSources) {
-      //       const caspioTables = dataSources
-      //       this.setState({caspioTables: this.state.caspioTables.concat(caspioTables)})
-      //     }.bind(this))
-      // }.bind(this))
-  }
-
-  componentDidUpdate(){
-    if (this.props.caspioAuthToken !== null) {
-      if (this.props.caspioTables.length === 0) {
-        this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.tables)
+    constructor() {
+      super()
+      this.state = {
+        currentPage: 4,
+        totalRecords: 0,
+        completeRecords: 0,
+        percent: 0
       }
-      if (this.props.caspioViews.length === 0) {
-        this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.views)
+      this.run = this.run.bind(this)
+    }
+
+    componentDidMount() {
+      this.props.authorize()
+    }
+
+    componentDidUpdate() {
+      if (this.props.caspioAuthToken !== null) {
+        if (this.props.caspioTables.length === 0) {
+          this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.tables)
+        }
+        if (this.props.caspioViews.length === 0) {
+          this.props.requestDataSources(this.props.caspioAuthToken, Constants.dataSourceEnum.views)
+        }
       }
     }
-  }
 
-  async getContacts(token) {
-    await Caspio.requestData(token, this.state.currentPage, Constants.caspioPageSize, Constants.dataSourceEnum.views, "CBPeopleJobs_Surge")
-    .then(function(contacts) {
-      this.setState({currentPage: this.state.currentPage + 1})
-      if (contacts.data.Result.length === Constants.caspioPageSize) {
-        return this.getContacts(token)
+    async getEmails(records) {
+      if (records.length > 0) {
+        for (var i = 0; i < records.length; i++) {
+          await getProspectEmail(
+              records[i][this.props.selectedDataSourceDomain],
+              records[i][this.props.selectedDataSourceFirstName],
+              records[i][this.props.selectedDataSourceLastName]
+            )
+            .then(function(email) {
+              this.setState({
+                completeRecords: this.state.completeRecords+1
+              })
+              this.setState({
+                percent: (this.state.completeRecords/this.state.totalRecords)*100
+              })
+            }.bind(this))
+        }
       }
-    }.bind(this))
-  }
+    }
 
-  handleDataSourceChange = (e, {value}) => {
-    this.setState({dataSource: value.dataSource })
-    Caspio.requestDataSourceColumns(this.state.caspioAccessToken, value.dataSourceType , value.dataSource)
-      .then( dataSourceColumns => {
-        this.setState({dataSourceColumns: dataSourceColumns})
-        console.log(this.state.dataSourceColumns)
-      })
-  }
+    async getRecords(records) {
+      await Caspio.requestData(
+          this.props.caspioAuthToken,
+          this.state.currentPage,
+          Constants.caspioPageSize,
+          this.props.selectedDataSourceType,
+          this.props.selectedDataSource
+        )
+        .then(function(records) {
+          this.setState({
+            currentPage: this.state.currentPage + 1
+          })
+          this.setState({
+            totalRecords: this.state.totalRecords + records.data.Result.length
+          })
+          console.log("currentPage: ", this.state.currentPage)
+          this.getEmails(records.data.Result)
 
-  handleAccordionDataSourceClick = (e, titleProps) => {
-    const { index } = titleProps
-    const { dataSourceActiveIndex } = this.state
-    const newIndex = dataSourceActiveIndex === index ? -1 : index
-    this.setState({ dataSourceActiveIndex: newIndex })
-  }
+          if (records.data.Result.length === Constants.caspioPageSize) {
+            return this.getRecords()
+          } else {
+            Caspio.requestData(this.props.caspioAuthToken, this.state.currentPage, Constants.caspioPageSize, this.props.selectedDataSourceType, this.props.selectedDataSource)
+              .then(function(records) {
+                this.setState({
+                  currentPage: this.state.currentPage + 1
+                })
+                this.setState({
+                  totalRecords: this.state.totalRecords + records.data.Result.length
+                })
+                console.log("currentPage: ", this.state.currentPage)
+                this.getEmails(records.data.Result)
+              }.bind(this))
+          }
+        }.bind(this))
+    }
+
+    run = () => {
+      this.props.setJobRunning(true)
+      this.getRecords()
+    }
 
   render() {
     return (
@@ -89,109 +141,57 @@ class App extends React.Component {
         <Grid centered divided='vertically' columns={2}>
           <Grid.Row centered columns={2} >
             <Grid.Column>
-              <Accordion as={Menu} vertical fluid>
-                <Menu.Item>
-                  <Accordion.Title
-                    active={this.state.dataSourceActiveIndex === 0}
-                    content='Tables'
-                    index={0}
-                    onClick={this.handleAccordionDataSourceClick}
-                  />
-                  <Accordion.Content
-                    active={this.state.dataSourceActiveIndex === 0}
-                    content= {
-                      <Views
-                        handleChange = {this.handleDataSourceChange}
-                        views = {this.props.caspioViews}
-                      />
-                    }
-                  />
-                </Menu.Item>
-                <Menu.Item>
-                  <Accordion.Title
-                    active={this.state.dataSourceActiveIndex === 1}
-                    content='Views'
-                    index={1}
-                    onClick={this.handleAccordionDataSourceClick}
-                  />
-                  <Accordion.Content
-                    active={this.state.dataSourceActiveIndex === 1}
-                    content= {
-                      <Tables
-                        handleChange={this.handleDataSourceChange}
-                        tables={this.props.caspioTables}
-                      />
-                    }
-                  />
-                </Menu.Item>
-              </Accordion>
+              <DataSourceAccordion />
             </Grid.Column>
           </Grid.Row>
-          {this.state.dataSourceColumns > 0 ? (
-            <Grid.Row centered columns={4}>
+          { this.props.selectedDataSourceColumns.length > 0 ? (
+            <Grid.Row centered columns={4} >
               <Grid.Column>
-                <Tables
-                  handleChange={this.handleDataSourceChange}
-                  tables={this.props.caspioTables}
-                />
+                <Label>{Constants.DataSourceColumnEnum.firstName}</Label>
+                <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.firstName} />
               </Grid.Column>
               <Grid.Column>
-                <Tables
-                  handleChange={this.handleDataSourceChange}
-                  tables={this.props.caspioTables}
-                />
+                <Label>{Constants.DataSourceColumnEnum.lastName}</Label>
+                <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.lastName} />
               </Grid.Column>
               <Grid.Column>
-                <Tables
-                  handleChange={this.handleDataSourceChange}
-                  tables={this.props.caspioTables}
-                />
+                <Label>{Constants.DataSourceColumnEnum.UUID}</Label>
+                <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.UUID} />
               </Grid.Column>
               <Grid.Column>
-                <Tables
-                  handleChange={this.handleDataSourceChange}
-                  tables={this.props.caspioTables}
-                />
+                <Label>{Constants.DataSourceColumnEnum.domain}</Label>
+                <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.domain} />
               </Grid.Column>
             </Grid.Row>
-          ): null}
+          ):null}
+          { (this.props.selectedDataSourceDomain &&
+            this.props.selectedDataSourceUUID &&
+            this.props.selectedDataSourceFirstName &&
+            this.props.selectedDataSourceLastName ) ? (
+              <Grid.Row centered columns={!this.props.jobRunning ? 5:1} >
+                { !this.props.jobRunning ? (
+                  <Grid.Column>
+                    <Button onClick={this.run}>Run</Button>
+                  </Grid.Column>
+                ):(
+                  <Grid.Column>
+                    <Progress percent={this.state.percent} indicating />
+                  </Grid.Column>
+                )}
+              </Grid.Row>
+            ):null}
         </Grid>
       </Segment>
     )
   }
 }
 
-const Tables = (props) => (
-  <Dropdown
-    clearable
-    fluid
-    search
-    selection
-    placeholder="Tables"
-    onChange={props.handleChange}
-    options={props.tables.map(table => (
-        { key: table, text: table, value: {dataSource: table, dataSourceType: Constants.dataSourceEnum.tables} }
-    ))}
-  />
-)
-
-const Views = (props) => (
-  <Dropdown
-    clearable
-    fluid
-    search
-    selection
-    placeholder="Views"
-    onChange={props.handleChange}
-    options={props.views.map(view => (
-        { key: view, text: view, value: {dataSource: view, dataSourceType: Constants.dataSourceEnum.views} }
-    ))}
-  />
-)
-
 export default connect(
-  mapStateToProps,
-  { authorize, requestDataSources }
+  mapStateToProps, {
+    authorize,
+    requestDataSources,
+    setJobRunning
+  }
 )(App);
 
 //export default connect(null, mapDispatchToProps)(App);

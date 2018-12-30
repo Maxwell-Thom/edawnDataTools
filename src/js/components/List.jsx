@@ -3,7 +3,8 @@ import React from "react";
 import { connect } from "react-redux";
 
 const mapStateToProps = state => {
-  return { articles: state.articles };
+  return { caspioViews: state.caspioViews,
+          caspioTables: state.caspioViews };
 };
 
 const ConnectedList = ({ articles }) => (
@@ -15,5 +16,15 @@ const ConnectedList = ({ articles }) => (
     ))}
   </ul>
 );
+
 const List = connect(mapStateToProps)(ConnectedList);
 export default List;
+
+//or
+
+// export default connect(
+//   (state) => ({
+//     caspioViews: state.caspioViews,
+//     caspioTables: state.caspioViews,
+//   })
+// )(ConnectedList);

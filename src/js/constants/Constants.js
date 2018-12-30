@@ -1,4 +1,5 @@
 var DataSourceEnum = Object.freeze({"views":"views", "tables":"tables"})
+var DataSourceColumnEnum = Object.freeze({"UUID":"UUID", "lastName":"Last Name", "firstName":"First Name" , "domain":"Domain"})
 
 const Constants = {
   caspioClientID: "c0c311c790a2416569dd581bb15c65621357d41118ed3e2deb",
@@ -7,7 +8,8 @@ const Constants = {
   caspioPageSize: 100,
   prospectSecretKey: "5d_yyMqoJNVTy-Xx2LYG",
   hunterSecretKey: "3bd0686bea18d2c0717ff7afcd5d0fa711de2d3c",
-  dataSourceEnum: DataSourceEnum
+  dataSourceEnum: DataSourceEnum,
+  DataSourceColumnEnum: DataSourceColumnEnum
 }
 
 export default Constants
