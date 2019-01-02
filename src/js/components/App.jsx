@@ -41,9 +41,9 @@ class App extends React.Component {
     constructor() {
       super()
       this.state = {
-        currentPage: 1,
+        currentPage: 4,
         totalRecords: 0,
-        completeRecords: 0,
+        completedRecords: 0,
         percent: 0,
         leads: []
       }
@@ -114,6 +114,12 @@ class App extends React.Component {
       return relevantApis.slice(-1)[0]
     }
 
+    incrementProgress() {
+      this.setState({ completedRecords: this.state.completedRecords + 1 })
+      this.setState({percent: (this.state.completedRecords/this.state.totalRecords)*100})
+      console.log(this.state.percent)
+    }
+
     async processLeads(leadIndex) {
       await this.getEmail(this.state.leads[leadIndex], 0)
         .then(function() {
@@ -137,9 +143,13 @@ class App extends React.Component {
                   if (email) {
                     lead.email = email
                     lead.source = Object.keys(api)[0]
-                    console.log(lead)
                     this.props.addLead(lead)
+                    this.incrementProgress()
                   } else {
+                    if (this.calculateFinalApi() === api) {
+                      this.props.addLead(lead)
+                      this.incrementProgress()
+                    }
                     this.getEmail(lead, apiIndex+1)
                   }
               }.bind(this))
@@ -157,9 +167,13 @@ class App extends React.Component {
                   if (email) {
                     lead.email = email
                     lead.source = Object.keys(api)[0]
-                    console.log(lead)
                     this.props.addLead(lead)
+                    this.incrementProgress()
                   } else {
+                    if (this.calculateFinalApi() === api) {
+                      this.props.addLead(lead)
+                      this.incrementProgress()
+                    }
                     this.getEmail(lead, apiIndex+1)
                   }
               }.bind(this))
