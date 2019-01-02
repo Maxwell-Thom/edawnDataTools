@@ -76,3 +76,17 @@ export function setDataSourceType(payload) {
     payload
   }
 };
+
+export function setEmailAPIs(payload) {
+  return {
+    type: ActionTypes.SET_EMAIL_APIS,
+    payload
+  }
+};
+
+export function addLead(payload) {
+  return {
+    type: ActionTypes.ADD_LEAD,
+    payload
+  }
+};

@@ -11,7 +11,9 @@ const initialState = {
   selectedDataSourceUUID: null,
   selectedDataSourceFirstName: null,
   selectedDataSourceLastName: null,
-  jobRunning: false
+  jobRunning: false,
+  emailAPIs: [{prospect:false}, {hunter:true}],
+  leads: []
 };
 
 function rootReducer(state = initialState, action) {
@@ -60,6 +62,14 @@ function rootReducer(state = initialState, action) {
       return Object.assign({}, state, {
         selectedDataSourceType: action.payload
       })
+    case ActionTypes.SET_EMAIL_APIS:
+      return Object.assign({}, state, {
+        emailAPIs: action.payload
+      })
+      case ActionTypes.ADD_LEAD:
+        return Object.assign({}, state, {
+          leads: state.leads.concat(action.payload)
+        })
     default:
       return state
   }

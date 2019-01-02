@@ -15,11 +15,9 @@ export async function getProspectEmail(domain, firstName, lastName) {
 
   return await Axios.get("https://api.prospect.io/public/v1/emails/search?", config)
     .then(function(response) {
-      console.log(response)
-      if (response.data.data > 0) {
+      if (response.data.data.length > 0) {
         let email = response.data.data[0].attributes.value
         let confidence = response.data.data[0].attributes.confidence
-
         if (confidence >= 90) {
           return email
         }
@@ -28,5 +26,6 @@ export async function getProspectEmail(domain, firstName, lastName) {
     })
     .catch(function(error) {
       console.log(error);
+      return null
     });
 }

@@ -1,4 +1,5 @@
 var DataSourceEnum = Object.freeze({"views":"views", "tables":"tables"})
+var EmailApiEnum = Object.freeze({prospect:"prospect", "hunter":"hunter"})
 var DataSourceColumnEnum = Object.freeze({"UUID":"UUID", "lastName":"Last Name", "firstName":"First Name" , "domain":"Domain"})
 
 const Constants = {
@@ -9,7 +10,8 @@ const Constants = {
   prospectSecretKey: "5d_yyMqoJNVTy-Xx2LYG",
   hunterSecretKey: "3bd0686bea18d2c0717ff7afcd5d0fa711de2d3c",
   dataSourceEnum: DataSourceEnum,
-  DataSourceColumnEnum: DataSourceColumnEnum
+  DataSourceColumnEnum: DataSourceColumnEnum,
+  EmailApiEnum: EmailApiEnum
 }
 
 export default Constants

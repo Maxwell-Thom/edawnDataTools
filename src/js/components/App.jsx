@@ -3,8 +3,14 @@ import React from 'react'
 import Constants from './../constants/Constants'
 import DataSourceAccordion from './../components/DataSourceAccordion'
 import ColumnDropdown from './../components/ColumnDropdown'
+import APIList from './../components/APIList'
 import * as Caspio from './../apis/Caspio'
-
+import { connect } from "react-redux";
+import { authorize, requestDataSources } from './../apis/Caspio'
+import { addLead, setJobRunning } from "./../actions/index";
+import { getProspectEmail } from './../apis/Prospect'
+import { getHunterEmail } from './../apis/Hunter'
+import Lead from './../prototypes/Lead'
 import {
   Grid,
   Segment,
@@ -12,23 +18,6 @@ import {
   Progress,
   Label
 } from 'semantic-ui-react'
-
-import {
-  connect
-} from "react-redux";
-
-import {
-  authorize,
-  requestDataSources
-} from './../apis/Caspio'
-
-import {
-  setJobRunning
-} from "./../actions/index";
-
-import {
-  getProspectEmail
-} from './../apis/Prospect'
 
 const mapStateToProps = state => {
   return {
@@ -42,19 +31,21 @@ const mapStateToProps = state => {
     selectedDataSourceLastName: state.selectedDataSourceLastName,
     selectedDataSource: state.selectedDataSource,
     selectedDataSourceType: state.selectedDataSourceType,
-    jobRunning: state.jobRunning
+    jobRunning: state.jobRunning,
+    emailAPIs: state.emailAPIs,
+    leads: state.leads
   };
 }
 
 class App extends React.Component {
-
     constructor() {
       super()
       this.state = {
-        currentPage: 4,
+        currentPage: 1,
         totalRecords: 0,
         completeRecords: 0,
-        percent: 0
+        percent: 0,
+        leads: []
       }
       this.run = this.run.bind(this)
     }
@@ -74,28 +65,8 @@ class App extends React.Component {
       }
     }
 
-    async getEmails(records) {
-      if (records.length > 0) {
-        for (var i = 0; i < records.length; i++) {
-          await getProspectEmail(
-              records[i][this.props.selectedDataSourceDomain],
-              records[i][this.props.selectedDataSourceFirstName],
-              records[i][this.props.selectedDataSourceLastName]
-            )
-            .then(function(email) {
-              this.setState({
-                completeRecords: this.state.completeRecords+1
-              })
-              this.setState({
-                percent: (this.state.completeRecords/this.state.totalRecords)*100
-              })
-            }.bind(this))
-        }
-      }
-    }
-
-    async getRecords(records) {
-      await Caspio.requestData(
+    async getRecords(lastCall) {
+        await Caspio.requestData(
           this.props.caspioAuthToken,
           this.state.currentPage,
           Constants.caspioPageSize,
@@ -103,31 +74,103 @@ class App extends React.Component {
           this.props.selectedDataSource
         )
         .then(function(records) {
-          this.setState({
-            currentPage: this.state.currentPage + 1
-          })
-          this.setState({
-            totalRecords: this.state.totalRecords + records.data.Result.length
-          })
-          console.log("currentPage: ", this.state.currentPage)
-          this.getEmails(records.data.Result)
+          if (records.data.Result.length > 0) {
+            this.setState({ totalRecords: this.state.totalRecords + records.data.Result.length})
+            for (var i = 0; i < records.data.Result.length; i++) {
+              let record = records.data.Result[i]
+              let lead = new Lead(
+                record[this.props.selectedDataSourceFirstName],
+                record[this.props.selectedDataSourceLastName],
+                record[this.props.selectedDataSourceUUID],
+                record[this.props.selectedDataSourceDomain],
+                null,
+                null,
+                null
+              )
 
-          if (records.data.Result.length === Constants.caspioPageSize) {
-            return this.getRecords()
+              this.setState({ leads: this.state.leads.concat(lead)})
+            }
+          }
+
+          if (records.data.Result.length === Constants.caspioPageSize && !lastCall) {
+            this.setState({ currentPage: this.state.currentPage + 1 })
+            console.log("currentPage: ", this.state.currentPage)
+            return this.getRecords(false)
+          } else if (!lastCall) {
+            this.setState({ currentPage: this.state.currentPage + 1 })
+            console.log("currentPage: ", this.state.currentPage)
+            return this.getRecords(true)
           } else {
-            Caspio.requestData(this.props.caspioAuthToken, this.state.currentPage, Constants.caspioPageSize, this.props.selectedDataSourceType, this.props.selectedDataSource)
-              .then(function(records) {
-                this.setState({
-                  currentPage: this.state.currentPage + 1
-                })
-                this.setState({
-                  totalRecords: this.state.totalRecords + records.data.Result.length
-                })
-                console.log("currentPage: ", this.state.currentPage)
-                this.getEmails(records.data.Result)
-              }.bind(this))
+            console.log(this.state.totalRecords)
+            this.processLeads(0)
           }
         }.bind(this))
+    }
+
+    calculateFinalApi() {
+      let relevantApis = this.props.emailAPIs.filter(item => {
+        return Object.values(item)[0]
+      })
+      return relevantApis.slice(-1)[0]
+    }
+
+    async processLeads(leadIndex) {
+      await this.getEmail(this.state.leads[leadIndex], 0)
+        .then(function() {
+          if (leadIndex < this.state.totalRecords) {
+            this.processLeads(leadIndex+1)
+          }
+        }.bind(this))
+    }
+
+    async getEmail(lead, apiIndex) {
+      let api = this.props.emailAPIs[apiIndex]
+      if (apiIndex < this.props.emailAPIs.length && lead) {
+        switch (Object.keys(api)[0]) {
+          case Constants.EmailApiEnum.prospect:
+            if (api[Constants.EmailApiEnum.prospect]) {
+              await getProspectEmail(
+                lead.domain,
+                lead.firstName,
+                lead.lastName
+              ).then(function(email) {
+                  if (email) {
+                    lead.email = email
+                    lead.source = Object.keys(api)[0]
+                    console.log(lead)
+                    this.props.addLead(lead)
+                  } else {
+                    this.getEmail(lead, apiIndex+1)
+                  }
+              }.bind(this))
+            } else {
+              await this.getEmail(lead, apiIndex+1)
+            }
+            break
+          case Constants.EmailApiEnum.hunter:
+            if (api[Constants.EmailApiEnum.hunter]) {
+              await getHunterEmail(
+                lead.domain,
+                lead.firstName,
+                lead.lastName
+              ).then(function(email) {
+                  if (email) {
+                    lead.email = email
+                    lead.source = Object.keys(api)[0]
+                    console.log(lead)
+                    this.props.addLead(lead)
+                  } else {
+                    this.getEmail(lead, apiIndex+1)
+                  }
+              }.bind(this))
+            } else {
+              await this.getEmail(lead, apiIndex+1)
+            }
+            break
+          default:
+            break
+        }
+      }
     }
 
     run = () => {
@@ -168,9 +211,16 @@ class App extends React.Component {
             this.props.selectedDataSourceUUID &&
             this.props.selectedDataSourceFirstName &&
             this.props.selectedDataSourceLastName ) ? (
-              <Grid.Row centered columns={!this.props.jobRunning ? 5:1} >
+              <Grid.Row centered columns={!this.props.jobRunning ? 5:3} >
                 { !this.props.jobRunning ? (
                   <Grid.Column>
+                    <Segment textAlign = "center">
+                      <Label>
+                        Select APIs
+                        <Label.Detail>(drag handle to change order)</Label.Detail>
+                      </Label>
+                      <APIList/>
+                    </Segment>
                     <Button onClick={this.run}>Run</Button>
                   </Grid.Column>
                 ):(
@@ -188,6 +238,7 @@ class App extends React.Component {
 
 export default connect(
   mapStateToProps, {
+    addLead,
     authorize,
     requestDataSources,
     setJobRunning
