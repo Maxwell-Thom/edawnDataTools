@@ -98,3 +98,28 @@ export function requestDataSourceColumns(accessToken, dataSourceType, dataSource
     }
   }
 }
+
+export function postCaspioRow(accessToken, dataSourceType, dataSourceName, lead, firstNameColumn, lastNameColumn, uuidColumn, domainColumn, emailColumn) {
+
+  let data = {
+    "people_first_name": lead.firstName,
+    "people_last_name": lead.lastName,
+    "people_uuid": lead.uuid,
+    "organizations_domain": lead.domain,
+  }
+
+  const config = {
+    headers: {
+      "Authorization": accessToken
+    }
+  }
+  let url = 'https://c5ebl095.caspio.com/rest/v1/'+dataSourceType+'/'+dataSourceName+'/rows'
+  //let url = 'https://c5ebl095.caspio.com/rest/v1/'+dataSourceType+'/'+dataSourceName+'/rows?q={"where":"people_uuid='+lead.uuid+'"}'
+  Axios.post(url, data, config)
+    .then(function(response) {
+      console.log(response)
+    })
+    .catch(function(error) {
+      console.log(error);
+    });
+}

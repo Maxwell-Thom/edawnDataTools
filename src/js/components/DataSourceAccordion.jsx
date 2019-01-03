@@ -2,7 +2,8 @@ import React from "react";
 import DataSourceDropdown from './../components/DataSourceDropdown'
 import {
   Accordion,
-  Menu
+  Menu,
+  Label
 } from 'semantic-ui-react'
 import Constants from './../constants/Constants'
 
@@ -31,6 +32,9 @@ class DataSourceAccordion extends React.Component {
   render() {
     return (
       <Accordion as={Menu} vertical fluid>
+      <Label>
+        Select Data Source
+      </Label>
         <Menu.Item>
           <Accordion.Title
             active={this.state.dataSourceActiveIndex === 0}

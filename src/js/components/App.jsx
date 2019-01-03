@@ -4,6 +4,7 @@ import Constants from './../constants/Constants'
 import DataSourceAccordion from './../components/DataSourceAccordion'
 import ColumnDropdown from './../components/ColumnDropdown'
 import APIList from './../components/APIList'
+import LeadsTable from './../components/LeadsTable'
 import * as Caspio from './../apis/Caspio'
 import { connect } from "react-redux";
 import { authorize, requestDataSources } from './../apis/Caspio'
@@ -41,10 +42,12 @@ class App extends React.Component {
     constructor() {
       super()
       this.state = {
-        currentPage: 4,
+        currentPage: 1,
+        noApiSelectedFlag: false,
         totalRecords: 0,
         completedRecords: 0,
         percent: 0,
+        jobRan: false,
         leads: []
       }
       this.run = this.run.bind(this)
@@ -84,7 +87,6 @@ class App extends React.Component {
                 record[this.props.selectedDataSourceUUID],
                 record[this.props.selectedDataSourceDomain],
                 null,
-                null,
                 null
               )
 
@@ -102,9 +104,16 @@ class App extends React.Component {
             return this.getRecords(true)
           } else {
             console.log(this.state.totalRecords)
-            this.processLeads(0)
+            this.state.totalRecords > 0 ? this.processLeads(0) : this.props.setJobRunning(false)
           }
         }.bind(this))
+    }
+
+    filterRelevantApis() {
+      let relevantApis = this.props.emailAPIs.filter(item => {
+        return Object.values(item)[0]
+      })
+      return relevantApis === undefined ? []:relevantApis
     }
 
     calculateFinalApi() {
@@ -117,7 +126,16 @@ class App extends React.Component {
     incrementProgress() {
       this.setState({ completedRecords: this.state.completedRecords + 1 })
       this.setState({percent: (this.state.completedRecords/this.state.totalRecords)*100})
-      console.log(this.state.percent)
+      if (this.state.percent === 100) {
+        this.cleanUpJob()
+      }
+    }
+
+    cleanUpJob() {
+      this.props.setJobRunning(false)
+      this.setState({ currentPage: 1 })
+      this.setState({ leads: [] })
+      this.setState({ jobRan: true })
     }
 
     async processLeads(leadIndex) {
@@ -130,8 +148,9 @@ class App extends React.Component {
     }
 
     async getEmail(lead, apiIndex) {
-      let api = this.props.emailAPIs[apiIndex]
-      if (apiIndex < this.props.emailAPIs.length && lead) {
+      let relevantApis = this.filterRelevantApis()
+      let api = relevantApis[apiIndex]
+      if (apiIndex < relevantApis.length && lead) {
         switch (Object.keys(api)[0]) {
           case Constants.EmailApiEnum.prospect:
             if (api[Constants.EmailApiEnum.prospect]) {
@@ -188,8 +207,35 @@ class App extends React.Component {
     }
 
     run = () => {
-      this.props.setJobRunning(true)
-      this.getRecords()
+
+      // let lead = new Lead(
+      //   "testFirst",
+      //   "testLast",
+      //   "t213123b1j23huuid",
+      //   "testDomain",
+      //   "nullEmail",
+      //   "nullSource"
+      // )
+      //
+      // Caspio.postCaspioRow(
+      //   this.props.caspioAuthToken,
+      //   this.props.selectedDataSourceType,
+      //   this.props.selectedDataSource,
+      //   lead,
+      //   this.props.selectedDataSourceFirstName,
+      //   this.props.selectedDataSourceLastName,
+      //   this.props.selectedDataSourceUUID,
+      //   this.props.selectedDataSourceDomain,
+      //   "organizations_uuid"
+      // )
+      this.setState({ noApiSelectedFlag: false })
+      let relevantApis = this.filterRelevantApis()
+      if (relevantApis.length > 0) {
+        this.getRecords()
+        this.props.setJobRunning(true)
+      } else {
+        this.setState({ noApiSelectedFlag: true })
+      }
     }
 
   render() {
@@ -202,7 +248,7 @@ class App extends React.Component {
             </Grid.Column>
           </Grid.Row>
           { this.props.selectedDataSourceColumns.length > 0 ? (
-            <Grid.Row centered columns={4} >
+            <Grid.Row centered columns={5} >
               <Grid.Column>
                 <Label>{Constants.DataSourceColumnEnum.firstName}</Label>
                 <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.firstName} />
@@ -212,7 +258,10 @@ class App extends React.Component {
                 <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.lastName} />
               </Grid.Column>
               <Grid.Column>
-                <Label>{Constants.DataSourceColumnEnum.UUID}</Label>
+                <Label>
+                  {Constants.DataSourceColumnEnum.UUID}
+                  <Label.Detail>(Must be unique)</Label.Detail>
+                </Label>
                 <ColumnDropdown dataSourceColumn={Constants.DataSourceColumnEnum.UUID} />
               </Grid.Column>
               <Grid.Column>
@@ -224,7 +273,8 @@ class App extends React.Component {
           { (this.props.selectedDataSourceDomain &&
             this.props.selectedDataSourceUUID &&
             this.props.selectedDataSourceFirstName &&
-            this.props.selectedDataSourceLastName ) ? (
+            this.props.selectedDataSourceLastName &&
+            !this.state.jobRan) ? (
               <Grid.Row centered columns={!this.props.jobRunning ? 5:3} >
                 { !this.props.jobRunning ? (
                   <Grid.Column>
@@ -234,6 +284,7 @@ class App extends React.Component {
                         <Label.Detail>(drag handle to change order)</Label.Detail>
                       </Label>
                       <APIList/>
+                      { this.state.noApiSelectedFlag ? (<Label color="red">Please select at least one api</Label>):null}
                     </Segment>
                     <Button onClick={this.run}>Run</Button>
                   </Grid.Column>
@@ -242,6 +293,13 @@ class App extends React.Component {
                     <Progress percent={this.state.percent} indicating />
                   </Grid.Column>
                 )}
+              </Grid.Row>
+            ):null}
+            { (this.props.leads.length > 0 && this.props.leads.length === this.state.totalRecords) ? (
+              <Grid.Row centered columns={1} >
+                <Grid.Column>
+                   <LeadsTable />
+                </Grid.Column>
               </Grid.Row>
             ):null}
         </Grid>
