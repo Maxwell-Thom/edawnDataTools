@@ -1,7 +1,7 @@
 import Axios from 'axios'
 import Constants from './../constants/Constants'
 
-export async function getHunterEmail(domain, firstName, lastName) {
+export async function getHunterEmail(domain, firstName, lastName, tolerance) {
   const config = {
     params: {
       "domain": domain,
@@ -16,8 +16,7 @@ export async function getHunterEmail(domain, firstName, lastName) {
       if (response.data.data) {
         let email = response.data.data.email
         let confidence = response.data.data.score
-
-        if (confidence >= 90) {
+        if (confidence >= tolerance) {
           return email
         }
       }

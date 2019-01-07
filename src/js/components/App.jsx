@@ -11,13 +11,15 @@ import { authorize, requestDataSources } from './../apis/Caspio'
 import { addLead, setJobRunning } from "./../actions/index";
 import { getProspectEmail } from './../apis/Prospect'
 import { getHunterEmail } from './../apis/Hunter'
+import { CSVLink, isSafari } from "react-csv";
 import Lead from './../prototypes/Lead'
 import {
   Grid,
   Segment,
   Button,
   Progress,
-  Label
+  Label,
+  Divider
 } from 'semantic-ui-react'
 
 const mapStateToProps = state => {
@@ -42,13 +44,15 @@ class App extends React.Component {
     constructor() {
       super()
       this.state = {
-        currentPage: 1,
+        currentPage: 6,
         noApiSelectedFlag: false,
         totalRecords: 0,
         completedRecords: 0,
         percent: 0,
         jobRan: false,
-        leads: []
+        leads: [],
+        successfulCSVData: [],
+        failureCSVData: []
       }
       this.run = this.run.bind(this)
     }
@@ -81,13 +85,18 @@ class App extends React.Component {
             this.setState({ totalRecords: this.state.totalRecords + records.data.Result.length})
             for (var i = 0; i < records.data.Result.length; i++) {
               let record = records.data.Result[i]
+              var data = []
+              for (var columnIndex = 0; columnIndex < this.props.selectedDataSourceColumns.length; columnIndex++ ) {
+                data.push(record[this.props.selectedDataSourceColumns[columnIndex]])
+              }
               let lead = new Lead(
                 record[this.props.selectedDataSourceFirstName],
                 record[this.props.selectedDataSourceLastName],
                 record[this.props.selectedDataSourceUUID],
                 record[this.props.selectedDataSourceDomain],
                 null,
-                null
+                null,
+                data
               )
 
               this.setState({ leads: this.state.leads.concat(lead)})
@@ -127,8 +136,27 @@ class App extends React.Component {
       this.setState({ completedRecords: this.state.completedRecords + 1 })
       this.setState({percent: (this.state.completedRecords/this.state.totalRecords)*100})
       if (this.state.percent === 100) {
-        this.cleanUpJob()
+        this.setCSVData()
       }
+    }
+
+    setCSVData() {
+      var successHeaders = this.props.selectedDataSourceColumns
+      successHeaders = successHeaders.concat("email")
+
+      this.setState({ successfulCSVData: []})
+      this.setState({ failureCSVData: []})
+
+      this.setState({ successfulCSVData: this.state.successfulCSVData.concat([successHeaders])})
+      this.setState({ failureCSVData: this.state.failureCSVData.concat([this.props.selectedDataSourceColumns])})
+      for (var i = 0; i < this.props.leads.length; i++) {
+        if (this.props.leads[i].email) {
+          this.setState({ successfulCSVData: this.state.successfulCSVData.concat([this.props.leads[i].data])})
+        } else {
+          this.setState({ failureCSVData: this.state.failureCSVData.concat([this.props.leads[i].data])})
+        }
+      }
+      console.log(this.state.successfulCSVData)
     }
 
     cleanUpJob() {
@@ -157,10 +185,12 @@ class App extends React.Component {
               await getProspectEmail(
                 lead.domain,
                 lead.firstName,
-                lead.lastName
+                lead.lastName,
+                api["tolerance"]
               ).then(function(email) {
                   if (email) {
                     lead.email = email
+                    lead.data = lead.data.concat(email)
                     lead.source = Object.keys(api)[0]
                     this.props.addLead(lead)
                     this.incrementProgress()
@@ -181,10 +211,12 @@ class App extends React.Component {
               await getHunterEmail(
                 lead.domain,
                 lead.firstName,
-                lead.lastName
+                lead.lastName,
+                api["tolerance"]
               ).then(function(email) {
                   if (email) {
                     lead.email = email
+                    lead.data = lead.data.concat(email)
                     lead.source = Object.keys(api)[0]
                     this.props.addLead(lead)
                     this.incrementProgress()
@@ -219,15 +251,15 @@ class App extends React.Component {
       //
       // Caspio.postCaspioRow(
       //   this.props.caspioAuthToken,
-      //   this.props.selectedDataSourceType,
-      //   this.props.selectedDataSource,
+      //   "Contacts",
       //   lead,
       //   this.props.selectedDataSourceFirstName,
       //   this.props.selectedDataSourceLastName,
       //   this.props.selectedDataSourceUUID,
       //   this.props.selectedDataSourceDomain,
-      //   "organizations_uuid"
+      //   "verified_email"
       // )
+
       this.setState({ noApiSelectedFlag: false })
       let relevantApis = this.filterRelevantApis()
       if (relevantApis.length > 0) {
@@ -275,7 +307,7 @@ class App extends React.Component {
             this.props.selectedDataSourceFirstName &&
             this.props.selectedDataSourceLastName &&
             !this.state.jobRan) ? (
-              <Grid.Row centered columns={!this.props.jobRunning ? 5:3} >
+              <Grid.Row centered columns={!this.props.jobRunning ?2:3} >
                 { !this.props.jobRunning ? (
                   <Grid.Column>
                     <Segment textAlign = "center">
@@ -298,7 +330,22 @@ class App extends React.Component {
             { (this.props.leads.length > 0 && this.props.leads.length === this.state.totalRecords) ? (
               <Grid.Row centered columns={1} >
                 <Grid.Column>
-                   <LeadsTable />
+                  { this.state.successfulCSVData.length > 0 &&
+                    this.state.failureCSVData.length > 0 &&
+                    !isSafari ? (
+                    <div>
+                      <CSVLink
+                        filename={this.props.selectedDataSource+"-SucccesfulLeads.csv"}
+                        data={this.state.successfulCSVData}>Download succcesful leads CSV
+                      </CSVLink>
+                      <Divider horizontal></Divider>
+                      <CSVLink
+                        filename={this.props.selectedDataSource+"-FailedLeads.csv"}
+                        data={this.state.failureCSVData}>Download failed leads CSV
+                      </CSVLink>
+                    </div>
+                  ):null}
+                  <LeadsTable />
                 </Grid.Column>
               </Grid.Row>
             ):null}
@@ -316,5 +363,3 @@ export default connect(
     setJobRunning
   }
 )(App);
-
-//export default connect(null, mapDispatchToProps)(App);

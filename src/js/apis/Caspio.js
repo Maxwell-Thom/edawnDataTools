@@ -99,13 +99,14 @@ export function requestDataSourceColumns(accessToken, dataSourceType, dataSource
   }
 }
 
-export function postCaspioRow(accessToken, dataSourceType, dataSourceName, lead, firstNameColumn, lastNameColumn, uuidColumn, domainColumn, emailColumn) {
+export function postCaspioRow(accessToken, dataSourceName, lead, firstNameColumn, lastNameColumn, uuidColumn, domainColumn, emailColumn) {
 
   let data = {
-    "people_first_name": lead.firstName,
-    "people_last_name": lead.lastName,
-    "people_uuid": lead.uuid,
-    "organizations_domain": lead.domain,
+    [firstNameColumn]: lead.firstName,
+    [lastNameColumn]: lead.lastName,
+    [uuidColumn]: lead.uuid,
+    [domainColumn]: lead.domain,
+    [emailColumn]: lead.email
   }
 
   const config = {
@@ -113,7 +114,7 @@ export function postCaspioRow(accessToken, dataSourceType, dataSourceName, lead,
       "Authorization": accessToken
     }
   }
-  let url = 'https://c5ebl095.caspio.com/rest/v1/'+dataSourceType+'/'+dataSourceName+'/rows'
+  let url = 'https://c5ebl095.caspio.com/rest/v1/'+Constants.dataSourceEnum.tables+'/'+dataSourceName+'/rows'
   //let url = 'https://c5ebl095.caspio.com/rest/v1/'+dataSourceType+'/'+dataSourceName+'/rows?q={"where":"people_uuid='+lead.uuid+'"}'
   Axios.post(url, data, config)
     .then(function(response) {

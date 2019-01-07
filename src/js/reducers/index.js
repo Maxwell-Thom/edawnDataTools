@@ -12,7 +12,7 @@ const initialState = {
   selectedDataSourceFirstName: null,
   selectedDataSourceLastName: null,
   jobRunning: false,
-  emailAPIs: [{prospect:false}, {hunter:true}],
+  emailAPIs: [{prospect:true, tolerance:90}, {hunter:true, tolerance:90}],
   leads: []
 };
 

@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {SortableContainer, SortableElement, SortableHandle, arrayMove} from 'react-sortable-hoc';
-import { List, Checkbox, Icon, Segment, Header, Grid } from 'semantic-ui-react'
+import { List, Checkbox, Icon, Segment, Header, Grid, Input } from 'semantic-ui-react'
 import { connect } from "react-redux";
 import {
   setEmailAPIs
@@ -33,31 +33,40 @@ const DragHandle = SortableHandle(() =>
   </Segment>
 );
 
-const SortableItem = SortableElement(({value, onClick}, props) =>
+const SortableItem = SortableElement(({value, onClick, onChange}, props) =>
   <List.Item>
     <Grid>
-      <Grid.Row centered columns={2} >
+      <Grid.Row centered columns={3} >
       <Grid.Column>
         <DragHandle />
       </Grid.Column>
       <Grid.Column>
-        <Header>{Object.keys(value)}</Header>
+        <Header>{Object.keys(value)[0]}</Header>
         <Checkbox
           toggle
           name={Object.keys(value)[0]}
           checked={value[Object.keys(value)[0]]}
           onClick={onClick}/>
       </Grid.Column>
+      <Grid.Column>
+        <Input
+          label="Tolerance"
+          name={Object.keys(value)[0]}
+          fluid
+          placeholder='90'
+          onChange={onChange}
+        />
+      </Grid.Column>
       </Grid.Row>
     </Grid>
   </List.Item>
 )
 
-const SortableList = SortableContainer(({items, onClick}, props) => {
+const SortableList = SortableContainer(({items, onClick, onChange}, props) => {
   return (
     <List celled>
       {items.map((value, index) => (
-        <SortableItem key={`item-${index}`} index={index} value={value} onClick={onClick} />
+        <SortableItem key={`item-${index}`} index={index} value={value} onClick={onClick} onChange={onChange}/>
       ))}
     </List>
   );
@@ -88,6 +97,20 @@ class APIList extends Component {
     }
   };
 
+  onChange = (e, {value, name}) => {
+    let intValue = parseInt(value, 10)
+    if (Number.isInteger(intValue)) {
+      this.setState(function(prevState, props){
+        var items = prevState.items
+        var item = items.filter(item => name === Object.keys(item)[0])[0]
+        item["tolerance"] = intValue
+        items[name] = item
+        return {items: items}
+      });
+      this.props.setEmailAPIs(this.state.items)
+    }
+  };
+
   render() {
     return (
       <SortableList
@@ -95,6 +118,7 @@ class APIList extends Component {
         onSortEnd={this.onSortEnd}
         useDragHandle={true}
         onClick={this.onClick}
+        onChange= {this.onChange}
       />
     )
   }

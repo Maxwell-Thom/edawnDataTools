@@ -1,7 +1,7 @@
 import Axios from 'axios'
 import Constants from './../constants/Constants'
 
-export async function getProspectEmail(domain, firstName, lastName) {
+export async function getProspectEmail(domain, firstName, lastName, tolerance) {
   const config = {
     headers: {
       "Authorization": Constants.prospectSecretKey,
@@ -18,7 +18,7 @@ export async function getProspectEmail(domain, firstName, lastName) {
       if (response.data.data.length > 0) {
         let email = response.data.data[0].attributes.value
         let confidence = response.data.data[0].attributes.confidence
-        if (confidence >= 90) {
+        if (confidence >= tolerance) {
           return email
         }
       }
