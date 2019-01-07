@@ -44,7 +44,7 @@ class App extends React.Component {
     constructor() {
       super()
       this.state = {
-        currentPage: 6,
+        currentPage: 1,
         noApiSelectedFlag: false,
         totalRecords: 0,
         completedRecords: 0,
@@ -338,7 +338,7 @@ class App extends React.Component {
                         filename={this.props.selectedDataSource+"-SucccesfulLeads.csv"}
                         data={this.state.successfulCSVData}>Download succcesful leads CSV
                       </CSVLink>
-                      <Divider horizontal></Divider>
+                      <Divider horizontal>or</Divider>
                       <CSVLink
                         filename={this.props.selectedDataSource+"-FailedLeads.csv"}
                         data={this.state.failureCSVData}>Download failed leads CSV
