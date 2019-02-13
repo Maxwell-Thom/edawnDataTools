@@ -23,7 +23,7 @@ export async function getHunterEmail(domain, firstName, lastName, tolerance) {
       return null
     })
     .catch(function(error) {
-      //console.log(error);
+      console.log(error);
       return null
     });
 }
